@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %></title>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+
+<script type="text/javascript">
+        $(function(){
+            var fileUp = '<%=content.fileUp%>';
+            var files = '';
+            var cnt = '';
+            var output = '';
+            if(fileUp != "") {
+                files = fileUp.split(',');
+                cnt = files.length;
+                for (var i = 0; i < cnt; i++) {
+                	output += '<button type="button" class="btn btn-primary" onclick=downloadFiles("'+files[i]+'");>'+files[i]+'</button>';
+                    //output += "<button type='button' onclick=downloadFiles('"+files[i]+"');>";
+                    //output += "<span id='downloadFile'>" + files[i] + "</span>";
+                    //output += "</button>";
+                }
+            } else {
+                output = "파일이 없습니다.";
+            }
+
+            $('.download-file').html(output);
+        });
+
+        function downloadFiles(filepath) {
+            var path = filepath;
+            if(confirm("파일이 다운로드 됩니다.") == true) {
+                location.href = "/boards/download/" + path;
+            }
+        }
+
+        function checkPW(inputPassword){
+            var result = '';
+
+            $.ajax({
+                url: '/boards/password/?id=<%=content._id%>',
+                async: false,
+                success: function(password) {
+                    if(inputPassword == password) result = true;
+                    else result = false;
+                }
+            });
+            return result;
+        }
+
+		function modifySubmitContents() {
+			var title = $('#modContentSubject').val();
+			var content = $('#modContents').val();
+			var inputPassword = $('#modContentPassword').val();
+			
+			var chkpw = checkPW(inputPassword);
+			
+			if(chkpw == true) {
+				if (title == '' || content == '') {
+					alert("제목과 내용 모두 있어야합니다.");
+					return;
+				} else {
+					if(confirm("수정하시겠습니까?")) {
+						$('#modifyAction').submit();
+					}
+				}
+			} else {
+				alert("글 작성 시 입력한 비밀 번호를 입력해주세요");
+				return;
+			}
+		}
+
+        function deleteConfirm() {
+       		var inputPassword = $('#modContentPassword').val();
+               var chkpw = checkPW(inputPassword);
+
+               if(chkpw == true) {
+					if(confirm("삭제하시겠습니까?")) {
+					   	location.href='/boards/delete?id=<%=content._id%>';
+					}
+               } else {
+                   alert("글 작성 시 입력한 비밀 번호를 입력해주세요");
+                   return;
+               }
+        }
+
+        function changePage(page) {
+            $.get('/boards/reply?id=<%=content._id%>&page='+page+"&max=<%=content.comments.length%>", function(replyList) {
+                var output = '';
+                for(var i=0;i<replyList.length;i++) {
+                	output += '<tr>';
+                	output += '<td>'+dateFormatChangeScript(replyList[i].date)+'</td>';
+                	output += '<td>'+replyList[i].name+'</td>';
+                	output += '<td>'+replyList[i].memo.replace(/\\r\\n/gi, " ")+'</td>';
+                	output += '</tr>';
+                }
+                $('#replyList').html(output);
+            });
+        }
+
+        function dateFormatChangeScript(date) {
+        	var format = new Date(date);
+    		var output = format.getFullYear().toString() + "." + pad2(format.getMonth() + 1) + "." + pad2(format.getDate()) + " " + pad2(format.getHours()) + ":" + pad2(format.getMinutes());
+    		return output;
+        }
+        
+        function pad2(n) {
+    		return n < 10 ? '0' + n : n
+    	}
+        
+    	function submitContents() {
+    		var replyWriter = $("#replyWriter").val();
+    		var replyComment = $("#replyComment").val();
+
+    		// 댓글 등록 시
+    		if (replyWriter == "" || replyComment == "") {
+    			alert("작성자와 내용이 모두 있어야 합니다.");
+    			return;
+    		} else {
+    			$("#replyAction").submit();
+    		}
+    	}
+        
+    </script>
+</head>
+<body>
+	<div class="container">
+
+		<a href="/boards"><h4>게시판</h4></a>
+		
+		<form id="modifyAction" action="/boards/?mode=modify" method="post">
+			<input type="hidden" id="modId" name="modId" value="<%=content._id%>">
+			<table class="table table-bordered">
+				<thead></thead>
+				<tbody>
+					<tr>
+						<td>제목</td>
+						<td><input type="text" class="form-control" id="modContentSubject" name="modContentSubject" value="<%=content.title%>"></td>		
+					</tr>
+					<tr>
+						<td>작성자</td>
+						<td><%=content.writer%></td>		
+					</tr>
+					<tr>
+						<td>날짜</td>
+						<td><%=dateFormatChange(content.date)%></td>		
+					</tr>
+					<tr>
+						<td>파일</td>
+						<td><div class="download-file"></div></td>		
+					</tr>
+					<tr>
+						<td>내용</td>
+						<td><textarea class="form-control" id="modContents" name="modContents" rows="15" cols="40"><%=content.contents%></textarea></td>		
+					</tr>
+					<tr>
+						<td colspan="2" class="text-center">
+							<div class="input-group">
+								<input type="password" class="form-control" id="modContentPassword" name="modContentPassword" placeholder="비밀번호 입력" aria-describedby="btnGroupAddon">
+								<button type="button" class="btn btn-success" onclick="javascript:modifySubmitContents();">수정</button>
+								<button type="button" class="btn btn-danger" onclick="javascript:deleteConfirm();">삭제</button>
+								<button type="button" class="btn btn-primary" onclick="javascript:document.location='/boards'">이전</button>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</form>
+
+		<form id="replyAction" action="/boards/reply" method="post">
+			<input type="hidden" name="replyId" id="replyId" value="<%=content._id%>">
+			<div class="row">
+				<div class="col col-lg-2">
+					<input type="text" class="form-control" id="replyWriter" name="replyWriter" placeholder="Comment Writer" maxlength="10">
+				</div>
+				<div class="col col-lg-10">
+					<div class="input-group">
+						<input type="text" class="form-control" id="replyComment" name="replyComment" placeholder="Comment Text" maxlength="100">
+						<span class="input-group-btn">
+							<button type="button" class="btn btn-primary" onclick="submitContents();">SUBMIT</button>
+						</span>
+					</div>
+				</div>
+			</div>
+		</form>
+
+		<table class="table table-sm">
+			<thead class="thead-default">
+				<tr>
+					<th>Date</th>
+					<th>Writer</th>
+					<th>Comment</th>
+				</tr>
+			</thead>
+			<tbody id="replyList">
+				<% if(content.comments.length>0){ %>
+					<%for(var i=0; i<content.comments.length; i++){%> 
+						<%if(i<5){%>
+							<tr>
+								<td><%=dateFormatChange(content.comments[i].date)%></td>
+								<td><%=content.comments[i].name%></td>
+								<td><%=content.comments[i].memo%></td>
+							</tr>
+						<%}%> 
+					<%}%> 
+				<%} else {%>
+					<tr>
+						<th scope="row" colspan="3" class="text-center">댓글이 없습니다.</th>
+					</tr>
+				<%}%> 
+			</tbody>
+		</table>
+
+		<nav aria-label="Page navigation example">
+			<ul class="pagination justify-content-center">
+				<% for(var i=1; i<=replyPage; i++){ %>
+					<li class="page-item"><a class="page-link" href="javascript:;" onClick="javascript:changePage(<%=i%>);"><%=i%></a></li>
+				<%}%>
+			</ul>
+		</nav>
+
+	</div>
+</body>
+</html>
+
+<%
+	function dateFormatChange(date) {
+		var output = date.getFullYear().toString() + "." + pad2(date.getMonth() + 1) + "." + pad2(date.getDate()) + " " + pad2(date.getHours()) + ":" + pad2(date.getMinutes());
+		return output;
+	}
+	
+	function pad2(n) {
+		return n < 10 ? '0' + n : n
+	}
+%>
